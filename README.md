@@ -1,7 +1,7 @@
 # Robocode Tank Royale Bot
 > Tugas Besar 1 - IF2211 Strategi Algoritma 2025
 <p align="center">
-    <img width="150px" src="https://github.com/BoredAngel/Tubes1_Atmint-Cabang-DoaAyahRestuIbu/blob/main/assets/robocode%20tank.gif?raw=true">
+    <img width="150px" src="https://github.com/BoredAngel/Tubes1_Atmint-Cabang-DoaAyahRestuIbu/blob/main/assets/robocode%20tank.svg?raw=true">
 </p>
     <h3 align="center">Robocode Tank Royale Bot</h3>
 <p align="center">
@@ -15,7 +15,7 @@
 <p align="justify">Robocode Tank Royale is a programming game where players codes a bot in the form of a virtual tanks to battle in an arena. Players write code to control their tanks, making decisions about movement, targeting, dodging, and strategy. The game is designed to teach programming concepts while providing a fun, competitive experience.</p>
 <p align="justify">This project is a greedy algorithms approach for Robocode Tank Royale, written in C#. lorem ipsum tambahin penjelasan lagi</p>
 <p align="center">
-    <img width="300px" src="https://github.com/BoredAngel/Tubes1_Atmint-Cabang-DoaAyahRestuIbu/blob/main/assets/robocode%20tank%20royale.svg?raw=true">
+    <img width="300px" src="https://github.com/BoredAngel/Tubes1_Atmint-Cabang-DoaAyahRestuIbu/blob/main/assets/robocode%20tank%20royale.gif?raw=true">
 </p>
 
 ## Getting Started
