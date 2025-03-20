@@ -1,0 +1,10 @@
+{
+  "name": "temp_bot",
+  "version": "1.0",
+  "authors": ["Fariz Rifqi"],
+  "description": "nigga",
+  "homepage": "",
+  "countryCodes": ["id"],
+  "platform": ".Net 9.0",
+  "programmingLang": "C# 10.0"
+}
