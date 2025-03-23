@@ -3,8 +3,10 @@ using System.Drawing;
 using Robocode.TankRoyale.BotApi;
 using Robocode.TankRoyale.BotApi.Events;
 using System;
+using System.Collections.Generic;
 
-public class linear_tracker : Bot
+
+public class adaptive_tracker : Bot
 {   
     int l_board = 100;
     int r_board = 700;
@@ -15,13 +17,166 @@ public class linear_tracker : Bot
     double enemy_hp_bef = 100;
     double enemy_id_bef = -1;
     double target_X, target_Y;
+    List<List<ScanData>> scan_data;
+    
+
+    class ScanData {
+        public double X;
+        public double Y;
+        public double Direction;
+        public double Speed;
+        public double Energy;
+        public int ID;
+        public int Turn;
+    }
+
+    public void UpdateData(double X, double Y, double Direction, double Speed, double Energy, int ID) {
+        scan_data[ID].Add(new ScanData {X = X, Y = Y, Direction = Direction, Speed = Speed, Energy = Energy, ID = ID, Turn = TurnNumber});
+        if (scan_data[ID].Count > 10) {
+            scan_data[ID].RemoveAt(0);
+        }
+
+        while (scan_data[ID][0].Turn < TurnNumber - 10) {
+            scan_data[ID].RemoveAt(0);
+        }
+
+        //Console.WriteLine("ID : " + ID);
+    }
+
+    public bool IsTurning(int ID) {
+        int len = scan_data[ID].Count;
+        
+        if (len < 2) {
+            return false;
+        }
+
+        if (scan_data[ID][len - 1].Direction - scan_data[ID][len - 2].Direction > 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    double GetTurnRateDegreesPerTick(int ID)
+    {
+        // If not enough data, assume no turning
+        if (scan_data[ID].Count < 2)
+            return 0.0;
+
+        int len = scan_data[ID].Count;
+        double latestDir = scan_data[ID][len - 1].Direction;    // newest heading
+        double prevDir   = scan_data[ID][len - 2].Direction;    // previous heading
+        double delta     = latestDir - prevDir;                 // heading change (deg)
+        double turnRate  = delta;                               // deg per 1 tick (since scans are 1 turn apart)
+
+        // Optional: normalize to [-180, +180] or something similar
+        // E.g., if an enemy goes from 359° to 1°, naive delta = +2°, but from 1° to 359°, naive delta = -2°
+        if (turnRate > 180)
+            turnRate -= 360;
+        else if (turnRate < -180)
+            turnRate += 360;
+
+        return turnRate; // in degrees/turn
+    }
+
+    /// <summary>
+    /// Predicts where a *turning* enemy will be, using a small time-step iteration.
+    /// Returns [bulletPower, firingAngleDegrees].
+    /// </summary>
+    public static double[] GetTurningPredictiveShot(
+        double myX, double myY,
+        double enemyX, double enemyY,
+        double enemyHeadingDeg,  // current heading in degrees
+        double enemySpeed,       // current speed (px/turn)
+        double turnRateDeg,      // estimated turning rate (deg/turn)
+        double desiredBulletPower // you can choose or compute this externally
+    )
+    {
+        // 1) Convert everything to radians for math
+        double enemyHeading = enemyHeadingDeg * Math.PI / 180.0;
+        double turnRate     = turnRateDeg      * Math.PI / 180.0; // rad/turn
+
+        // 2) Compute bullet speed from your bullet power (standard Robocode formula)
+        //    bulletSpeed = 20 - 3 * power
+        //    or adapt if your game rules differ
+        double bulletSpeed = 20.0 - 3.0 * desiredBulletPower;
+
+        // 3) We'll search for a time 't' (in turns) between 0 and some max
+        //    that best satisfies "distance to predicted position = bulletSpeed * t".
+        //    We'll iterate in small steps (e.g., 0.1 turn).
+        double bestT = 0.0;
+        double minDiff = double.MaxValue;
+
+        double maxTime = 50;     // 50 turns is arbitrary; adjust as needed
+        double step    = 0.5;    // bigger steps = faster but less accurate
+
+        for (double t = 0.0; t < maxTime; t += step)
+        {
+            // predict enemy heading after t turns
+            double headingAtT = enemyHeading + turnRate * t;
+
+            // predict position after t turns, assuming constant speed + turning
+            double predX = enemyX + enemySpeed * t * Math.Cos(enemyHeading);
+            double predY = enemyY + enemySpeed * t * Math.Sin(enemyHeading);
+
+            // But wait, the enemy heading is changing over time, so we can do a
+            // more fine-grained sub-iteration. For demonstration, let's do a
+            // simpler approach: assume heading is constant over each small 'step.'
+            // A more accurate method would break the total time t into smaller
+            // increments and update heading incrementally.
+
+            // distance from my bot to predicted position
+            double dist = Distance(myX, myY, predX, predY);
+
+            // bullet travel distance if it flies for 't' turns:
+            double bulletDist = bulletSpeed * t;
+
+            // how close are we to an intercept?
+            double diff = Math.Abs(dist - bulletDist);
+            if (diff < minDiff)
+            {
+                minDiff = diff;
+                bestT   = t;
+            }
+        }
+
+        // 4) Now we have bestT. Let’s compute the final predicted position more carefully
+        //    with a smaller step iteration. This is optional, or you can simply re-run the
+        //    same logic for bestT. We'll do a mini incremental simulation for better accuracy:
+        double finalX = enemyX;
+        double finalY = enemyY;
+        double finalHeading = enemyHeading;
+
+        double dt = 0.1; // sub-step
+        for (double elapsed = 0; elapsed < bestT; elapsed += dt)
+        {
+            finalX += enemySpeed * dt * Math.Cos(finalHeading);
+            finalY += enemySpeed * dt * Math.Sin(finalHeading);
+            finalHeading += turnRate * dt;
+        }
+
+        // 5) Compute the firing angle from my bot to predicted position
+        double angleRadians = Math.Atan2(finalY - myY, finalX - myX);
+        double firingAngleDeg = angleRadians * 180.0 / Math.PI;
+
+        return new double[] { desiredBulletPower, firingAngleDeg };
+    }
+
+    // Utility distance function
+    private static double Distance(double x1, double y1, double x2, double y2)
+    {
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        return Math.Sqrt(dx*dx + dy*dy);
+    }
+
 
     bool clockwise = true;
     int hit_bot_turn_recovery = 0;
     /* A bot that drives forward and backward, and fires a bullet */
     static void Main(string[] args)
     {
-        new linear_tracker().Start();
+        new adaptive_tracker().Start();
     }
 
     public double getOffset1(double distance) {
@@ -32,7 +187,7 @@ public class linear_tracker : Bot
             double offset = 90 + (100 - distance) * 0.8;
             return Math.Min(offset, 120);
         } else {
-            return 90;
+            return 90 + Math.Sin(TurnNumber * Math.PI / 180) * 90;
         }
     }
 
@@ -44,7 +199,7 @@ public class linear_tracker : Bot
             double offset = 90 + (distance - 120) * 0.3;
             return Math.Min(offset, 120);
         } else {
-            return 90;
+            return 90 + Math.Sin(TurnNumber * Math.PI / 180) * 90;
         }
     }
 
@@ -173,18 +328,25 @@ public class linear_tracker : Bot
     }
 
 
-    linear_tracker() : base(BotInfo.FromFile("linear_tracker.json")) { }
+    adaptive_tracker() : base(BotInfo.FromFile("adaptive_tracker.json")) { }
 
     public override void Run()
     {
         /* Customize bot colors, read the documentation for more information */
-        BodyColor     = Color.FromArgb(197, 133, 48); 
-        TurretColor   = Color.FromArgb(205, 205, 205);
-        RadarColor    = Color.FromArgb(255, 0, 127);  
-        BulletColor   = Color.FromArgb(255, 0, 255);  
-        ScanColor     = Color.FromArgb(255, 0, 127);  
-        TracksColor   = Color.FromArgb(155, 155, 155); 
-        GunColor      = Color.FromArgb(175, 175, 175);
+        BodyColor     = Color.FromArgb(58, 122, 207); 
+        TurretColor   = Color.FromArgb(50, 50, 50);  
+        RadarColor    = Color.FromArgb(0, 255, 128);
+        BulletColor   = Color.FromArgb(0, 255, 0);   
+        ScanColor     = Color.FromArgb(0, 255, 128); 
+        TracksColor   = Color.FromArgb(100, 100, 100);
+        GunColor      = Color.FromArgb(80, 80, 80);  
+
+
+        scan_data = new List<List<ScanData>>();
+        scan_data.Add(new List<ScanData>());
+        scan_data.Add(new List<ScanData>());
+        scan_data.Add(new List<ScanData>());
+        scan_data.Add(new List<ScanData>());
 
 
         while (IsRunning)
@@ -237,16 +399,30 @@ public class linear_tracker : Bot
         }
 
         // -------- HANDLE GUN -------- //
-        double[] shot = GetPredictedShot(X, Y, e.X, e.Y, e.Direction, e.Speed);
+        UpdateData(e.X, e.Y, e.Direction, e.Speed, e.Energy, e.ScannedBotId);
+
+        double[] shot;
+        if (!IsTurning(e.ScannedBotId)) shot = GetPredictedShot(X, Y, e.X, e.Y, e.Direction, e.Speed);
+        else {
+            if (distance < 200) {
+            shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 2.0);
+        }
+        else if (distance < 400) {
+            shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 1.0);
+        }
+        else {
+            shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 0.5);
+        }
+        }
         double bulletPower = shot[0];
         double firingAngle = shot[1];
 
         double gunTurn = NormalizeRelativeAngle(firingAngle - GunDirection);
         SetTurnGunLeft(gunTurn);
 
-        if (gunTurn < 2.5) {
-            Fire(bulletPower);
-        }
+        // -------- FIRE -------- //
+        SetFire(bulletPower);
+
 
         enemy_hp_bef = e.Energy;
         this_hp_bef = Energy;

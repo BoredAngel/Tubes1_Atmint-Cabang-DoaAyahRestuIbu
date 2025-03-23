@@ -2,7 +2,7 @@
   "name": "temp_bot",
   "version": "1.0",
   "authors": ["Fariz Rifqi"],
-  "description": "nigga",
+  "description": "This is bot for radar-tracking only",
   "homepage": "",
   "countryCodes": ["id"],
   "platform": ".Net 9.0",

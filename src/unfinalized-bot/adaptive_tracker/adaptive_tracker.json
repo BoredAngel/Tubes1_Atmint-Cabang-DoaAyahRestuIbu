@@ -1,0 +1,10 @@
+{
+  "name": "adaptive_tracker",
+  "version": "1.0",
+  "authors": ["Fariz Rifqi"],
+  "description": "this bot will track enemy's movement and rotate around it. The gun trajectory will be adjusted to enemy's movement : linear prediction and rotation prediction",
+  "homepage": "",
+  "countryCodes": ["id"],
+  "platform": ".Net 9.0",
+  "programmingLang": "C# 10.0"
+}
