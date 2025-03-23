@@ -1,0 +1,10 @@
+{
+  "name": "Snake Bot",
+  "version": "1.0",
+  "authors": ["jibs", "fariz"],
+  "description": "But you can't even say my name",
+  "homepage": "",
+  "countryCodes": ["id"],
+  "platform": ".Net 9.0",
+  "programmingLang": "C# 10.0"
+}
