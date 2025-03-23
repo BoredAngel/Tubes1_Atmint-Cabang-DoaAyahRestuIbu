@@ -178,13 +178,13 @@ public class linear_tracker : Bot
     public override void Run()
     {
         /* Customize bot colors, read the documentation for more information */
-        BodyColor = Color.FromArgb(0x00, 0x00, 0x00);
-        TurretColor = Color.FromArgb(0x00, 0x00, 0x00);
-        RadarColor = Color.FromArgb(0x00, 0x00, 0x00);
-        BulletColor = Color.FromArgb(0x00, 0x00, 0x00);
-        ScanColor = Color.FromArgb(0x00, 0x00, 0x00);
-        TracksColor = Color.FromArgb(0x00, 0x00, 0x00);
-        GunColor = Color.FromArgb(0x00, 0x00, 0x00);
+        BodyColor     = Color.FromArgb(197, 133, 48); 
+        TurretColor   = Color.FromArgb(205, 205, 205);
+        RadarColor    = Color.FromArgb(255, 0, 127);  
+        BulletColor   = Color.FromArgb(255, 0, 255);  
+        ScanColor     = Color.FromArgb(255, 0, 127);  
+        TracksColor   = Color.FromArgb(155, 155, 155); 
+        GunColor      = Color.FromArgb(175, 175, 175);
 
 
         while (IsRunning)
