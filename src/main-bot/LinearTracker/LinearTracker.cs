@@ -11,9 +11,6 @@ public class LinearTracker : Bot
     int u_board = 100;
     int d_board = 500;
     int minimal_turn_to_reverse = 10;
-    double this_hp_bef = 100;
-    double enemy_hp_bef = 100;
-    double enemy_id_bef = -1;
     double target_X, target_Y;
     int counter_shot = 0;
     int counter_hit = 0;
@@ -226,10 +223,6 @@ public class LinearTracker : Bot
         if (gunTurn < 2.5) {
             Fire(bulletPower);
         }
-
-        enemy_hp_bef = e.Energy;
-        this_hp_bef = Energy;
-        enemy_id_bef = e.ScannedBotId;
     }
 
     public override void  OnBulletHit(BulletHitBotEvent bulletHitBotEvent) {
