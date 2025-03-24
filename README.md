@@ -13,7 +13,7 @@
 ## Project Overview
 
 <p align="justify">Robocode Tank Royale is a programming game where players codes a bot in the form of a virtual tanks to battle in an arena. Players write code to control their tanks, making decisions about movement, targeting, dodging, and strategy. The game is designed to teach programming concepts while providing a fun, competitive experience.</p>
-<p align="justify">This project is a greedy algorithms approach for Robocode Tank Royale, written in C#. lorem ipsum tambahin penjelasan lagi</p>
+<p align="justify">This project is a greedy algorithms approach for Robocode Tank Royale, written in C#. We are tasked in building 4 bots with different strategy on winning the battle royale. All 4 bots must use a greedy algorithm approach in designing their strategy.  </p>
 <p align="center">
     <img width="300px" src="https://github.com/BoredAngel/Tubes1_Atmint-Cabang-DoaAyahRestuIbu/blob/main/assets/robocode%20tank%20royale.gif?raw=true">
 </p>
@@ -23,7 +23,7 @@
 ### Requirements
 - C# 10.0
 - .NET 9.0
-- Java
+- Java 21.0
 
 ### Running the Application
 
