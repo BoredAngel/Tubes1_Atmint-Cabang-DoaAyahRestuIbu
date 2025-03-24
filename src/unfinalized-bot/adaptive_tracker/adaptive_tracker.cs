@@ -59,18 +59,15 @@ public class adaptive_tracker : Bot
 
     double GetTurnRateDegreesPerTick(int ID)
     {
-        // If not enough data, assume no turning
         if (scan_data[ID].Count < 2)
             return 0.0;
 
         int len = scan_data[ID].Count;
-        double latestDir = scan_data[ID][len - 1].Direction;    // newest heading
-        double prevDir   = scan_data[ID][len - 2].Direction;    // previous heading
-        double delta     = latestDir - prevDir;                 // heading change (deg)
-        double turnRate  = delta;                               // deg per 1 tick (since scans are 1 turn apart)
+        double latestDir = scan_data[ID][len - 1].Direction;  
+        double prevDir   = scan_data[ID][len - 2].Direction;  
+        double delta     = latestDir - prevDir;                 
+        double turnRate  = delta;                              
 
-        // Optional: normalize to [-180, +180] or something similar
-        // E.g., if an enemy goes from 359° to 1°, naive delta = +2°, but from 1° to 359°, naive delta = -2°
         if (turnRate > 180)
             turnRate -= 360;
         else if (turnRate < -180)
@@ -86,83 +83,101 @@ public class adaptive_tracker : Bot
     public static double[] GetTurningPredictiveShot(
         double myX, double myY,
         double enemyX, double enemyY,
-        double enemyHeadingDeg,  // current heading in degrees
-        double enemySpeed,       // current speed (px/turn)
-        double turnRateDeg,      // estimated turning rate (deg/turn)
-        double desiredBulletPower // you can choose or compute this externally
+        double enemyHeadingDeg,
+        double enemySpeed,    
+        double turnRateDeg,  
+        double desiredBulletPower 
     )
     {
-        // 1) Convert everything to radians for math
         double enemyHeading = enemyHeadingDeg * Math.PI / 180.0;
-        double turnRate     = turnRateDeg      * Math.PI / 180.0; // rad/turn
-
-        // 2) Compute bullet speed from your bullet power (standard Robocode formula)
-        //    bulletSpeed = 20 - 3 * power
-        //    or adapt if your game rules differ
+        double turnRate = turnRateDeg * Math.PI / 180.0; 
+        
         double bulletSpeed = 20.0 - 3.0 * desiredBulletPower;
-
-        // 3) We'll search for a time 't' (in turns) between 0 and some max
-        //    that best satisfies "distance to predicted position = bulletSpeed * t".
-        //    We'll iterate in small steps (e.g., 0.1 turn).
+        
         double bestT = 0.0;
         double minDiff = double.MaxValue;
-
-        double maxTime = 50;     // 50 turns is arbitrary; adjust as needed
-        double step    = 0.5;    // bigger steps = faster but less accurate
+        double maxTime = 50; 
+        double step = 0.5;      
 
         for (double t = 0.0; t < maxTime; t += step)
         {
-            // predict enemy heading after t turns
-            double headingAtT = enemyHeading + turnRate * t;
-
-            // predict position after t turns, assuming constant speed + turning
-            double predX = enemyX + enemySpeed * t * Math.Cos(enemyHeading);
-            double predY = enemyY + enemySpeed * t * Math.Sin(enemyHeading);
-
-            // But wait, the enemy heading is changing over time, so we can do a
-            // more fine-grained sub-iteration. For demonstration, let's do a
-            // simpler approach: assume heading is constant over each small 'step.'
-            // A more accurate method would break the total time t into smaller
-            // increments and update heading incrementally.
-
-            // distance from my bot to predicted position
+            double[] prediction = PredictPositionWithArc(
+                enemyX, enemyY, enemyHeading, enemySpeed, turnRate, t);
+            
+            double predX = prediction[0];
+            double predY = prediction[1];
+            
             double dist = Distance(myX, myY, predX, predY);
-
-            // bullet travel distance if it flies for 't' turns:
             double bulletDist = bulletSpeed * t;
-
-            // how close are we to an intercept?
+            
             double diff = Math.Abs(dist - bulletDist);
             if (diff < minDiff)
             {
                 minDiff = diff;
-                bestT   = t;
+                bestT = t;
             }
         }
-
-        // 4) Now we have bestT. Let’s compute the final predicted position more carefully
-        //    with a smaller step iteration. This is optional, or you can simply re-run the
-        //    same logic for bestT. We'll do a mini incremental simulation for better accuracy:
-        double finalX = enemyX;
-        double finalY = enemyY;
-        double finalHeading = enemyHeading;
-
-        double dt = 0.1; // sub-step
-        for (double elapsed = 0; elapsed < bestT; elapsed += dt)
+        
+        double refinedMinDiff = minDiff;
+        double refinedBestT = bestT;
+        double refinedStep = step / 10.0;
+        double refinedStart = Math.Max(0, bestT - step);
+        double refinedEnd = bestT + step;
+        
+        for (double t = refinedStart; t < refinedEnd; t += refinedStep)
         {
-            finalX += enemySpeed * dt * Math.Cos(finalHeading);
-            finalY += enemySpeed * dt * Math.Sin(finalHeading);
-            finalHeading += turnRate * dt;
+            double[] prediction = PredictPositionWithArc(
+                enemyX, enemyY, enemyHeading, enemySpeed, turnRate, t);
+            
+            double predX = prediction[0];
+            double predY = prediction[1];
+
+            double dist = Distance(myX, myY, predX, predY);
+            double bulletDist = bulletSpeed * t;
+            
+            double diff = Math.Abs(dist - bulletDist);
+            if (diff < refinedMinDiff)
+            {
+                refinedMinDiff = diff;
+                refinedBestT = t;
+            }
         }
-
-        // 5) Compute the firing angle from my bot to predicted position
-        double angleRadians = Math.Atan2(finalY - myY, finalX - myX);
+        
+        double[] finalPrediction = PredictPositionWithArc(
+            enemyX, enemyY, enemyHeading, enemySpeed, turnRate, refinedBestT);
+        
+        double angleRadians = Math.Atan2(finalPrediction[1] - myY, finalPrediction[0] - myX);
         double firingAngleDeg = angleRadians * 180.0 / Math.PI;
-
+        
         return new double[] { desiredBulletPower, firingAngleDeg };
     }
 
-    // Utility distance function
+    private static double[] PredictPositionWithArc(
+        double x, double y, double heading, double speed, double turnRate, double time)
+    {
+        if (Math.Abs(turnRate) < 0.000001)
+        {
+            return new double[] { 
+                x + speed * time * Math.Cos(heading),
+                y + speed * time * Math.Sin(heading),
+                heading
+            };
+        }
+        
+        double radius = speed / turnRate;
+        
+        double centerX = x - radius * Math.Sin(heading);
+        double centerY = y + radius * Math.Cos(heading);
+        
+        double newHeading = heading + turnRate * time;
+        
+        double newX = centerX + radius * Math.Sin(newHeading);
+        double newY = centerY - radius * Math.Cos(newHeading);
+        
+        return new double[] { newX, newY, newHeading };
+    }
+
+
     private static double Distance(double x1, double y1, double x2, double y2)
     {
         double dx = x2 - x1;
@@ -226,49 +241,34 @@ public class adaptive_tracker : Bot
         double enemyHeading, double enemyVelocity
     )
     {
-        // 1) Compute the distance to the enemy
         enemyHeading = enemyHeading * Math.PI / 180;
         double dx = enemyX - myX;
         double dy = enemyY - myY;
         double distance = Math.Sqrt(dx * dx + dy * dy);
 
-        // 2) Choose a bullet power (higher power if enemy is closer)
-        //    (This is a custom range up to 5.0, not standard Robocode.)
         double bulletPower;
-        if (distance < 75)
-        {
+        if (distance < 75) {
             bulletPower = 4.0;
         }
-        else if (distance < 100)
-        {
+        else if (distance < 100) {
             bulletPower = 3.0;
         }
-        else if (distance < 125)
-        {
+        else if (distance < 125) {
             bulletPower = 2.0;
         }
-        else if (distance < 175)
-        {
+        else if (distance < 175) {
             bulletPower = 1.0;
         }
-        else
-        {
+        else {
             bulletPower = 0.5;
         }
 
-        // 3) Compute bullet speed (adjust formula to match your game rules)
-        //    For standard Robocode: bulletSpeed = 20 - 3 * bulletPower
         double bulletSpeed = 20.0 - 3.0 * bulletPower;
 
-        // 4) Decompose enemy velocity into X, Y components
+
         double vx = enemyVelocity * Math.Cos(enemyHeading);
         double vy = enemyVelocity * Math.Sin(enemyHeading);
 
-        // 5) Solve the quadratic for interception time t:
-        //      (dx + vx*t)^2 + (dy + vy*t)^2 = (bulletSpeed * t)^2
-        //    => a = vx^2 + vy^2 - bulletSpeed^2
-        //       b = 2 * (dx*vx + dy*vy)
-        //       c = dx^2 + dy^2
         double a = vx * vx + vy * vy - bulletSpeed * bulletSpeed;
         double b = 2.0 * (dx * vx + dy * vy);
         double c = dx * dx + dy * dy;
@@ -276,35 +276,26 @@ public class adaptive_tracker : Bot
         double discriminant = b * b - 4.0 * a * c;
         double t = 0.0;
 
-        // If the quadratic has a real solution
         if (Math.Abs(a) > 1e-9 && discriminant >= 0.0)
         {
             double sqrtDisc = Math.Sqrt(discriminant);
             double t1 = (-b + sqrtDisc) / (2.0 * a);
             double t2 = (-b - sqrtDisc) / (2.0 * a);
 
-            // Choose the smallest positive time
-            if (t1 > 0.0 && t2 > 0.0)
-            {
+            if (t1 > 0.0 && t2 > 0.0) {
                 t = Math.Min(t1, t2);
             }
-            else if (t1 > 0.0)
-            {
+            else if (t1 > 0.0) {
                 t = t1;
             }
-            else if (t2 > 0.0)
-            {
+            else if (t2 > 0.0) {
                 t = t2;
             }
-            else
-            {
-                // No positive time => fallback to direct aim
+            else {
                 t = 0.0;
             }
         }
-        else
-        {
-            // No valid solution => fallback to direct aim
+        else {
             t = 0.0;
         }
 
@@ -316,10 +307,8 @@ public class adaptive_tracker : Bot
         // Console.WriteLine("Predicted XY : " + predictedX + " " + predictedY);
         // Console.WriteLine("Velocity XY : " + vx + " " + vy);
 
-        // 7) Compute the firing angle in radians
         double firingAngle = Math.Atan2(predictedY - myY, predictedX - myX);
         
-        // 8) Turn angle into a relative angle
         firingAngle = firingAngle * 180 / Math.PI;
 
         //Console.WriteLine("Predicted shot: bulletPower={0}, firingAngle={1}", bulletPower, firingAngle);
@@ -404,15 +393,15 @@ public class adaptive_tracker : Bot
         double[] shot;
         if (!IsTurning(e.ScannedBotId)) shot = GetPredictedShot(X, Y, e.X, e.Y, e.Direction, e.Speed);
         else {
-            if (distance < 200) {
-            shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 2.0);
-        }
-        else if (distance < 400) {
-            shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 1.0);
-        }
-        else {
-            shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 0.5);
-        }
+            if (distance < 100) {
+                shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 2.0);
+            }
+            else if (distance < 200) {
+                shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 1.0);
+            }
+            else {
+                shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 0.5);
+            }
         }
         double bulletPower = shot[0];
         double firingAngle = shot[1];
@@ -428,6 +417,19 @@ public class adaptive_tracker : Bot
         this_hp_bef = Energy;
         enemy_id_bef = e.ScannedBotId;
     }
+
+    // public override void OnBulletFired(BulletFiredEvent e) {
+    //     BulletState bullet = e.Bullet;
+
+    //     Console.WriteLine("Bullet Fired : " + bullet.BulletId);
+    //     Console.WriteLine("Bullet Owner : " + bullet.OwnerId);
+    //     Console.WriteLine("Bullet Power : " + bullet.Power);
+    //     Console.WriteLine("Bullet X : " + bullet.X);
+    //     Console.WriteLine("Bullet Y : " + bullet.Y);
+    //     Console.WriteLine("Bullet Direction : " + bullet.Direction);
+    //     Console.WriteLine("Bullet Speed : " + bullet.Speed);
+    //     Console.WriteLine("Bullet Color : " + bullet.Color); 
+    // }
 
     public override void OnHitBot(HitBotEvent e) {
         if (minimal_turn_to_reverse < 5) {

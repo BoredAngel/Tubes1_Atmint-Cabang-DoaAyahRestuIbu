@@ -71,14 +71,11 @@ public class linear_tracker : Bot
         double enemyHeading, double enemyVelocity
     )
     {
-        // 1) Compute the distance to the enemy
         enemyHeading = enemyHeading * Math.PI / 180;
         double dx = enemyX - myX;
         double dy = enemyY - myY;
         double distance = Math.Sqrt(dx * dx + dy * dy);
 
-        // 2) Choose a bullet power (higher power if enemy is closer)
-        //    (This is a custom range up to 5.0, not standard Robocode.)
         double bulletPower;
         if (distance < 75)
         {
@@ -101,19 +98,11 @@ public class linear_tracker : Bot
             bulletPower = 0.5;
         }
 
-        // 3) Compute bullet speed (adjust formula to match your game rules)
-        //    For standard Robocode: bulletSpeed = 20 - 3 * bulletPower
         double bulletSpeed = 20.0 - 3.0 * bulletPower;
 
-        // 4) Decompose enemy velocity into X, Y components
         double vx = enemyVelocity * Math.Cos(enemyHeading);
         double vy = enemyVelocity * Math.Sin(enemyHeading);
 
-        // 5) Solve the quadratic for interception time t:
-        //      (dx + vx*t)^2 + (dy + vy*t)^2 = (bulletSpeed * t)^2
-        //    => a = vx^2 + vy^2 - bulletSpeed^2
-        //       b = 2 * (dx*vx + dy*vy)
-        //       c = dx^2 + dy^2
         double a = vx * vx + vy * vy - bulletSpeed * bulletSpeed;
         double b = 2.0 * (dx * vx + dy * vy);
         double c = dx * dx + dy * dy;
@@ -121,39 +110,29 @@ public class linear_tracker : Bot
         double discriminant = b * b - 4.0 * a * c;
         double t = 0.0;
 
-        // If the quadratic has a real solution
-        if (Math.Abs(a) > 1e-9 && discriminant >= 0.0)
-        {
+        if (Math.Abs(a) > 1e-9 && discriminant >= 0.0) {
             double sqrtDisc = Math.Sqrt(discriminant);
             double t1 = (-b + sqrtDisc) / (2.0 * a);
             double t2 = (-b - sqrtDisc) / (2.0 * a);
 
-            // Choose the smallest positive time
-            if (t1 > 0.0 && t2 > 0.0)
-            {
+            if (t1 > 0.0 && t2 > 0.0) {
                 t = Math.Min(t1, t2);
             }
-            else if (t1 > 0.0)
-            {
+            else if (t1 > 0.0) {
                 t = t1;
             }
-            else if (t2 > 0.0)
-            {
+            else if (t2 > 0.0) {
                 t = t2;
             }
-            else
-            {
-                // No positive time => fallback to direct aim
+            else {
                 t = 0.0;
             }
         }
-        else
-        {
+        else {
             // No valid solution => fallback to direct aim
             t = 0.0;
         }
 
-        // 6) Predict enemy position at time t
         double predictedX = enemyX + vx * t;
         double predictedY = enemyY + vy * t;
 
@@ -161,10 +140,8 @@ public class linear_tracker : Bot
         // Console.WriteLine("Predicted XY : " + predictedX + " " + predictedY);
         // Console.WriteLine("Velocity XY : " + vx + " " + vy);
 
-        // 7) Compute the firing angle in radians
         double firingAngle = Math.Atan2(predictedY - myY, predictedX - myX);
         
-        // 8) Turn angle into a relative angle
         firingAngle = firingAngle * 180 / Math.PI;
 
         //Console.WriteLine("Predicted shot: bulletPower={0}, firingAngle={1}", bulletPower, firingAngle);
