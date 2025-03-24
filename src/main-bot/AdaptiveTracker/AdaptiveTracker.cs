@@ -13,9 +13,6 @@ public class AdaptiveTracker : Bot
     int u_board = 100;
     int d_board = 500;
     int minimal_turn_to_reverse = 10;
-    double this_hp_bef = 100;
-    double enemy_hp_bef = 100;
-    double enemy_id_bef = -1;
     double target_X, target_Y;
     List<List<ScanData>> scan_data;
     int counter_shot = 0;
@@ -420,10 +417,6 @@ public class AdaptiveTracker : Bot
 
         // -------- FIRE -------- //
         SetFire(bulletPower);
-
-        enemy_hp_bef = e.Energy;
-        this_hp_bef = Energy;
-        enemy_id_bef = e.ScannedBotId;
     }
 
     // public override void OnBulletFired(BulletFiredEvent e) {
