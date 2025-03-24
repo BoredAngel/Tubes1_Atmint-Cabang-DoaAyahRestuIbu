@@ -15,6 +15,8 @@ public class LinearTracker : Bot
     double enemy_hp_bef = 100;
     double enemy_id_bef = -1;
     double target_X, target_Y;
+    int counter_shot = 0;
+    int counter_hit = 0;
 
     bool clockwise = true;
     int hit_bot_turn_recovery = 0;
@@ -228,6 +230,26 @@ public class LinearTracker : Bot
         enemy_hp_bef = e.Energy;
         this_hp_bef = Energy;
         enemy_id_bef = e.ScannedBotId;
+    }
+
+    public override void  OnBulletHit(BulletHitBotEvent bulletHitBotEvent) {
+        counter_hit += 1;
+        counter_shot += 1;
+
+        // Console.Write("Bullet Shot : " + counter_shot + "\n" + "Bullet Hit : " + counter_hit + " ");
+        // Console.Write("Hit Rate : " + (double)counter_hit / counter_shot + "\n");
+    }
+
+    public override void OnBulletHitWall(BulletHitWallEvent bulletHitWallEvent) {
+        counter_shot += 1;
+        // Console.Write("Bullet Shot : " + counter_shot + "\n" + "Bullet Hit : " + counter_hit + " ");
+        // Console.Write("Hit Rate : " + (double)counter_hit / counter_shot + "\n");
+    }
+
+    public override void OnBulletHitBullet(BulletHitBulletEvent bulletHitBulletEvent) {
+        counter_shot += 1;
+        // Console.Write("Bullet Shot : " + counter_shot + "\n" + "Bullet Hit : " + counter_hit + " ");
+        // Console.Write("Hit Rate : " + (double)counter_hit / counter_shot + "\n");
     }
 
     public override void OnHitBot(HitBotEvent e) {

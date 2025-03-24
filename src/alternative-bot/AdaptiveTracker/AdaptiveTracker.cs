@@ -18,6 +18,8 @@ public class AdaptiveTracker : Bot
     double enemy_id_bef = -1;
     double target_X, target_Y;
     List<List<ScanData>> scan_data;
+    int counter_shot = 0;
+    int counter_hit = 0;
     
 
     class ScanData {
@@ -394,14 +396,20 @@ public class AdaptiveTracker : Bot
         double[] shot;
         if (!IsTurning(e.ScannedBotId)) shot = GetPredictedShot(X, Y, e.X, e.Y, e.Direction, e.Speed);
         else {
-            if (distance < 100) {
+            if (distance < 75) {
+                shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 4.0);
+            }
+            else if (distance < 100) {
+                shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 3.0);
+            }
+            else if (distance < 125) {
                 shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 2.0);
             }
-            else if (distance < 200) {
-                shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 1.0);
+            else if (distance < 175) {
+                shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 1.0); 
             }
             else {
-                shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 0.5);
+                shot = GetTurningPredictiveShot(X, Y, e.X, e.Y, e.Direction, e.Speed, GetTurnRateDegreesPerTick(e.ScannedBotId), 0.5); 
             }
         }
         double bulletPower = shot[0];
@@ -412,7 +420,6 @@ public class AdaptiveTracker : Bot
 
         // -------- FIRE -------- //
         SetFire(bulletPower);
-
 
         enemy_hp_bef = e.Energy;
         this_hp_bef = Energy;
@@ -431,6 +438,29 @@ public class AdaptiveTracker : Bot
     //     Console.WriteLine("Bullet Speed : " + bullet.Speed);
     //     Console.WriteLine("Bullet Color : " + bullet.Color); 
     // }
+
+    public override void  OnBulletHit(BulletHitBotEvent bulletHitBotEvent) {
+        counter_hit += 1;
+        counter_shot += 1;
+
+        // Console.Write("Bullet Shot : " + counter_shot + "\n" + "Bullet Hit : " + counter_hit + " ");
+        // Console.Write("Hit Rate : " + (double)counter_hit / counter_shot + "\n");
+    }
+
+    public override void OnBulletHitWall(BulletHitWallEvent bulletHitWallEvent) {
+        counter_shot += 1;
+
+        // Console.Write("Bullet Shot : " + counter_shot + "\n" + "Bullet Hit : " + counter_hit + " ");
+        // Console.Write("Hit Rate : " + (double)counter_hit / counter_shot + "\n");
+    }
+
+    public override void OnBulletHitBullet(BulletHitBulletEvent bulletHitBulletEvent) {
+        counter_shot += 1;
+
+        // Console.Write("Bullet Shot : " + counter_shot + "\n" + "Bullet Hit : " + counter_hit + " ");
+        // Console.Write("Hit Rate : " + (double)counter_hit / counter_shot + "\n");
+    }
+
 
     public override void OnHitBot(HitBotEvent e) {
         if (minimal_turn_to_reverse < 5) {
