@@ -21,15 +21,21 @@
 ## Getting Started
 
 ### Requirements
-- C#
-- .NET
+- C# 10.0
+- .NET 9.0
+- Java
 
 ### Running the Application
 
-1. step 1 
-2. step 2
-3. step 3
-
+1. cd src
+2. java -jar robocode-tankroyale-gui-0.30.0.jar
+3. Ctrl + d to open Bot Root Directory 
+4. Add both main-bot and alternative-bot directory to the Bot Root Directory list. 
+5. Ctrl + s to start the game server
+6. ctrl + b to open the battle menu
+7. Boot any bot you want and add them to select them as players
+8. Click start battle
+9. Enjoy
 
 ---
 
